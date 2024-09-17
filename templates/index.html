@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Яндекс Диск</title>
+    <style>
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #textForm {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #textForm label {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        #textForm input {
+            padding: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #textForm button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #textForm button:hover {
+            background-color: #0056b3;
+        }
+        #output {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .item {
+            display: flex;
+            margin-bottom: 19px;
+            width: 100%;
+            max-width: 700px;
+            justify-content: space-between;
+            margin: 10px 0;
+            align-items: center;
+        }
+        .name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-right: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .type {
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #fff;
+            display: inline-block;
+        }
+        .type.file {
+            background-color: #28a745;
+        }
+        .type.dir {
+            background-color: #ff7600;
+        }
+        .button {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #007bff;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            margin-bottom: 15px;
+            margin-left: auto;
+        }
+        .button:hover {
+            background-color: #0056b3;
+
+        }
+        .button:active {
+            background-color: #004494; 
+        }
+        .error-message {
+            display: none;
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .error-message.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="error" class="error-message"></div>
+    <form id="textForm">
+        <input type="text" id="url" placeholder="Введите ссылку на Яндекс Диск" required>
+        <button type="submit">Submit</button>
+    </form>
+
+    <div id="output"></div>
+
+    <script defer>
+        function getUrlByName(sizes, name) {
+            const item = sizes.find(size => size.name === name);
+            return item ? item.url : null;
+        }
+        window.onload = () => {
+
+            const downloadAll = document.createElement('button');
+            downloadAll.className = 'button';
+            downloadAll.id = 'download-button';
+            downloadAll.textContent = 'Скачать выбранные';
+            downloadAll.style.display = 'none';
+            downloadAll.style.margin = '0 100px';
+            document.body.appendChild(downloadAll);
+
+            document.getElementById('textForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const url = document.getElementById('url').value;
+                const errorDiv = document.getElementById('error');
+
+                fetch('/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    errorDiv.style.display = 'none';
+                    const items = data._embedded.items;
+                    const productListDiv = document.getElementById('output');
+                    productListDiv.innerHTML = '';
+                    items.forEach(item => {
+                        const itemContainer = document.createElement('div');
+                        itemContainer.className = 'item';
+
+                        const name = document.createElement('span');
+                        name.textContent = `${item.name}`;
+                        name.className = 'name';
+
+                        const type = document.createElement('span');
+                        type.textContent = `${item.type}`;
+                        type.className = 'type';
+
+
+                        const downloadButton = document.createElement('a');
+                        fetch('/download', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                url: url,
+                                path: item.path
+                            }),
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            downloadButton.href = data.href;
+                            downloadButton.textContent = 'Скачать';
+                            downloadButton.className = 'button';
+                            downloadButton.download = '';
+                        })
+                        .catch(error => {
+                            errorDiv.textContent = `Ошибка: ${error.message}`;
+                            errorDiv.style.display = 'block';
+                        });
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'checkbox';
+
+                        if (type.textContent === 'file') {
+                            type.classList.add('file');
+                        } else if (type.textContent === 'dir') {
+                            type.classList.add('dir');
+                        };
+
+                        downloadAll.style.display = 'block';
+                        
+                        itemContainer.appendChild(checkbox);
+                        itemContainer.appendChild(type);
+                        itemContainer.appendChild(name);
+                        itemContainer.appendChild(downloadButton);
+                        productListDiv.appendChild(itemContainer);
+                        productListDiv.appendChild(downloadAll);
+                    });
+                })
+                .catch(error => {
+                    errorDiv.textContent = `Ошибка: ${error.message}`;
+                    errorDiv.style.display = 'block';
+                });
+            });
+
+
+        
+            document.getElementById('download-button').addEventListener('click', function() {
+                const checkedCheckboxes = document.querySelectorAll('.checkbox:checked');
+                const links = [];
+                const errorDiv = document.getElementById('error');
+    
+                checkedCheckboxes.forEach(checkbox => {
+                    const link = checkbox.closest('.item').querySelector('a');
+                    if (link) {
+                        links.push(link.href);
+                    }
+                });
+    
+                if (links.length > 0) {
+                    downloadFiles(links);
+                } else {
+                    errorDiv.textContent = `Ни один элемент не выбран.`;
+                    errorDiv.style.display = 'block';
+                }
+            });
+    
+            function downloadFiles(links) {
+                links.forEach((link, index) => {
+                    setTimeout(() => {
+                        const a = document.createElement('a');
+                        a.href = link;
+                        a.download = '';
+                        a.click();
+                    }, index * 1000);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
